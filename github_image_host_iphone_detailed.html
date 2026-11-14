@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitHub 图床管理助手｜多图上传与裁剪</title>
+<style>
+:root{--purple:#7657e8;--purple2:#9b72f5;--ink:#29243b;--muted:#827d91;--line:#ece9f4;--bg:#f7f5fc;--white:#fff;--danger:#df5367;--green:#239b70}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:linear-gradient(120deg,#6546d8,#a278f2);color:white;padding:28px max(20px,calc((100% - 1100px)/2));box-shadow:0 8px 24px #7354d526}
+header h1{margin:0;font-size:25px}header p{margin:5px 0 0;opacity:.88}
+main{max-width:1100px;margin:25px auto;padding:0 18px 60px}.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 5px 20px #35235c08}
+h2{font-size:18px;margin:0 0 15px}.config{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;color:var(--muted);font-size:13px;margin-bottom:5px}.field input,.tokenrow input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;outline:none}.field input:focus,.tokenrow input:focus{border-color:var(--purple)}
+.tokenrow{display:flex;gap:9px;margin-top:12px}.tokenrow input{flex:1;min-width:0}
+button{border:0;border-radius:10px;padding:10px 15px;background:var(--purple);color:white;font:inherit;font-weight:600;cursor:pointer}button:hover{filter:brightness(1.05)}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#f0edfa;color:#5945a6}.danger{background:#fff0f2;color:var(--danger)}.small{padding:7px 10px;font-size:13px}
+.drop{border:2px dashed #cfc4f1;background:#faf9ff;border-radius:15px;padding:34px 16px;text-align:center;cursor:pointer;transition:.2s}.drop.over{background:#f0ebff;border-color:var(--purple)}.drop strong{display:block;font-size:17px}.drop span{color:var(--muted);font-size:13px}.drop input{display:none}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0 12px}.toolbar .left{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.muted{color:var(--muted);font-size:13px}
+.queue{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:13px}.item{border:1px solid var(--line);border-radius:13px;overflow:hidden;background:white;min-width:0}.thumb{height:150px;background:#f4f2f8;display:flex;align-items:center;justify-content:center}.thumb img{max-width:100%;max-height:100%;object-fit:contain}.itembody{padding:10px}.filename{font-size:13px;overflow-wrap:anywhere;min-height:38px}.status{font-size:12px;color:var(--muted);margin:5px 0}.actions{display:flex;gap:6px;flex-wrap:wrap}.progress{height:5px;background:#eeeaf5;border-radius:10px;overflow:hidden;margin-top:7px}.progress i{display:block;height:100%;width:0;background:var(--purple)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:13px}.gallery .thumb{height:155px}.url{width:100%;font-size:11px;border:1px solid var(--line);border-radius:7px;padding:7px;margin:7px 0}
+.empty{text-align:center;color:var(--muted);padding:25px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#282336;color:white;padding:11px 16px;border-radius:10px;box-shadow:0 8px 30px #0002;z-index:20;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1}
+.modal{position:fixed;inset:0;background:#171321b8;z-index:10;display:none;align-items:center;justify-content:center;padding:14px}.modal.open{display:flex}.dialog{background:white;border-radius:18px;width:min(850px,100%);max-height:94vh;overflow:auto;padding:18px}.dialoghead{display:flex;justify-content:space-between;align-items:center;gap:10px}.dialoghead h2{margin:0}.editor{display:flex;justify-content:center;align-items:center;background:#211d2b;border-radius:12px;min-height:220px;padding:12px;margin:14px 0;overflow:hidden}.stage{position:relative;touch-action:none;user-select:none;max-width:100%;box-shadow:0 0 0 1px #ffffff44}.stage img{display:block;width:100%;height:100%;pointer-events:none}.cropbox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px #0008;cursor:move;touch-action:none}.cropbox:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 33%,#ffffff80 33%,#ffffff80 34%,transparent 34%,transparent 66%,#ffffff80 66%,#ffffff80 67%,transparent 67%),linear-gradient(0deg,transparent 33%,#ffffff80 33%,#ffffff80 34%,transparent 34%,transparent 66%,#ffffff80 66%,#ffffff80 67%,transparent 67%);pointer-events:none}.handle{position:absolute;width:18px;height:18px;right:-8px;bottom:-8px;background:white;border:2px solid var(--purple);border-radius:50%;z-index:2;cursor:nwse-resize}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.controls label{font-size:13px;color:var(--muted)}select{padding:9px;border:1px solid var(--line);border-radius:9px;background:white;font:inherit}.dialogfoot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:14px}
+@media(max-width:600px){.config{grid-template-columns:1fr}.panel{padding:15px}.queue{grid-template-columns:repeat(2,minmax(0,1fr))}.thumb{height:125px}.dialog{padding:13px}.editor{padding:7px}}
+
+/* 清晰说明式界面：移动端优先 */
+body{background:linear-gradient(180deg,#f6f3ff 0,#faf9fd 320px,#f8f7fb 100%)}
+header{padding-top:30px;padding-bottom:30px}
+header h1{letter-spacing:.2px}
+main{max-width:1040px;margin-top:22px}
+.panel{border-radius:20px;padding:22px;margin-bottom:17px;box-shadow:0 7px 26px #46336f0b}
+h2{font-size:18px;letter-spacing:.1px}
+.section-desc{font-size:13px;color:#777187;margin:-7px 0 17px;line-height:1.7}
+.guide-panel{border:1px solid #e7defb;background:linear-gradient(145deg,#fff 0%,#fbf9ff 100%)}
+.guide-title{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}
+.guide-title h2{margin:0 0 4px}.guide-title p{margin:0;color:#777187;font-size:13px;line-height:1.65}
+.step-dot{width:29px;height:29px;flex:0 0 29px;border-radius:10px;background:#eee8ff;color:#674bd0;display:grid;place-items:center;font-weight:800}
+.guide-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.guide-card{background:#fff;border:1px solid #eeeaf5;border-radius:13px;padding:13px}
+.guide-card b{font-size:13px;color:#4c3b83}.guide-card p,.token-help p,.notice p{font-size:12px;line-height:1.7;color:#777187;margin:6px 0 0}
+.notice{margin-top:13px;border-radius:12px;background:#f2efff;border:1px solid #e6defd;padding:13px 15px}
+.notice b{font-size:13px;color:#5d48a8}
+.token-help{margin-top:13px;padding:12px 14px;border-radius:11px;background:#f8f6fd;border:1px solid #eeeaf5}
+.token-help b{font-size:13px;color:#57488a}
+.hint{font-weight:400;color:#9a94a8;margin-left:4px}
+.field input,.tokenrow input{min-height:45px;background:#fff}
+.tokenrow{margin-top:10px}
+.drop{padding:32px 15px;border-radius:16px;background:linear-gradient(180deg,#fcfbff,#f7f4ff)}
+.drop strong{margin-bottom:5px}
+.toolbar{margin:18px 0 13px}
+.item{border-radius:15px;box-shadow:0 3px 12px #32234f08}
+.itembody{padding:12px}
+.actions button{min-height:34px}
+.status{line-height:1.5;overflow-wrap:anywhere}
+.empty{border:1px dashed #e6e1ef;border-radius:12px;background:#fcfbfe}
+button{transition:transform .12s ease,filter .12s ease}
+button:active{transform:scale(.98)}
+@media(max-width:760px){.guide-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){
+ header{padding:24px 18px}header h1{font-size:22px}
+ main{margin-top:14px;padding:0 12px 40px}
+ .panel{padding:16px;border-radius:16px}
+ .guide-grid{grid-template-columns:1fr 1fr;gap:8px}
+ .guide-card{padding:11px}.guide-card p{font-size:11px}
+ .tokenrow{flex-direction:column}.tokenrow button{width:100%;min-height:44px}
+ .toolbar{align-items:flex-start}.toolbar .left{gap:7px}
+ .queue{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .itembody{padding:9px}.filename{font-size:12px}
+ .actions button{flex:1;padding:7px 6px;font-size:12px}
+ .dialog{width:100%;max-height:96dvh;border-radius:16px}
+ .controls{gap:7px}.controls select{max-width:100%}
+}
+
+</style>
+</head>
+<body>
+<header><h1>GitHub 图床管理助手</h1><p>从选择图片、预览裁剪，到批量上传与外链管理，一页完成</p></header>
+<main>
+
+<section class="panel guide-panel">
+  <div class="guide-title"><span class="step-dot">i</span><div><h2>使用前先看这里</h2><p>这是一份手机优先设计的图床工具说明。建议使用 Safari 打开已部署到 GitHub Pages 的网页。</p></div></div>
+  <div class="guide-grid">
+    <div class="guide-card"><b>① 配置图床</b><p>填写 GitHub 用户名、公开仓库名称和 Personal Access Token。保存后会记在当前浏览器中。</p></div>
+    <div class="guide-card"><b>② 添加图片</b><p>点击选择图片，可一次勾选多张；也可以从支持拖拽的设备把图片拖入上传区域。</p></div>
+    <div class="guide-card"><b>③ 预览与裁剪</b><p>每张图片都可以单独预览。拖动裁剪框调整位置，拖动右下角圆点调整范围，再选择需要的画面比例。</p></div>
+    <div class="guide-card"><b>④ 上传并复制链接</b><p>确认待上传列表无误后，点击上传全部。上传完成后刷新图库，即可复制图片外链。</p></div>
+  </div>
+  <div class="notice"><b>iPhone 使用提示</b><p>请用 Safari 打开网页地址，不要只用「文件」App 的快速预览。选择图片时可从「照片图库」或「浏览」中导入。裁剪和上传期间请保持页面打开，并尽量使用稳定网络。</p></div>
+</section>
+<section class="panel">
+<h2>① 连接你的 GitHub 图床</h2><p class="section-desc">这一步只需设置一次。用户名和仓库名决定图片最终存放的位置；Token 用于授权网页向你的仓库上传、读取和删除文件。</p>
+<div class="config">
+ <div class="field"><label>GitHub 用户名 <span class="hint">例如：yourname</span></label><input id="username" placeholder="填写 GitHub 用户名"></div>
+ <div class="field"><label>图片仓库名称 <span class="hint">例如：my-images</span></label><input id="repo" placeholder="例如 yan"></div>
+</div>
+<div class="token-help"><b>Token 从哪里获取？</b><p>在 GitHub 账户设置中创建 Personal Access Token，并确保它拥有目标仓库所需的访问权限。复制生成的 Token，粘贴到下面输入框。不要把 Token 发给他人。</p></div><div class="tokenrow"><input id="token" type="password" placeholder="GitHub Personal Access Token（ghp_...）"><button id="saveToken">保存设置</button></div>
+<p class="muted">设置保存在当前浏览器。建议使用仅拥有目标仓库必要权限的 Token；不要在公共设备上保存。</p>
+</section>
+
+<section class="panel">
+<h2>② 选择需要上传的图片</h2><p class="section-desc">支持一次添加多张图片。图片会先进入待上传区，你可以逐张检查、裁剪或移除；此时还不会上传到 GitHub。</p>
+<label class="drop" id="drop">
+ <strong>点击选择图片，或将图片拖到这里</strong>
+ <span>支持多选 · JPG / JPEG / PNG / GIF / WEBP / BMP / SVG / ICO</span>
+ <input id="files" type="file" accept="image/*,.svg,.ico" multiple>
+</label>
+<div class="toolbar">
+ <div class="left"><strong>待上传列表</strong><span class="muted" id="count">0 张图片</span></div>
+ <div class="left"><button class="secondary small" id="clear">清空列表</button><button id="upload">上传全部</button></div>
+</div>
+<div id="queue" class="queue"><div class="empty">还没有添加图片</div></div>
+</section>
+
+<section class="panel">
+<div class="toolbar"><div><h2 style="margin:0">③ 管理已上传图片</h2><p class="section-desc">这里会列出仓库根目录中已上传的图片。你可以复制外链、在新页面打开图片，或删除不再需要的文件。</p><span class="muted">GitHub 仓库根目录中的图片文件</span></div><button class="secondary" id="refresh">刷新图库</button></div>
+<div id="gallery" class="gallery"><div class="empty">点击“刷新图库”加载文件</div></div>
+</section>
+</main>
+
+<div class="modal" id="modal">
+ <div class="dialog">
+  <div class="dialoghead"><h2>裁剪图片</h2><button class="secondary small" id="closeEditor">关闭</button></div>
+  <div class="editor"><div class="stage" id="stage"><img id="editImg"><div class="cropbox" id="cropbox"><span class="handle"></span></div></div></div>
+  <div class="controls">
+   <label>裁剪比例</label>
+   <select id="ratio"><option value="free">自由比例</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="16:9">16:9</option></select>
+   <button class="secondary small" id="rotate">旋转 90°</button>
+   <span class="muted">拖动裁剪框调整位置，拖动右下角调整大小</span>
+  </div>
+  <div class="dialogfoot"><button class="secondary" id="resetCrop">重置裁剪框</button><div><button class="secondary" id="cancelCrop">取消</button> <button id="applyCrop">应用裁剪</button></div></div>
+ </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== 可选：也可以直接在这里填写默认用户名和仓库名 ====== */
+const DEFAULT_USERNAME = "";
+const DEFAULT_REPO = "";
+const BRANCH = "main";
+const API = "https://api.github.com";
+const $ = id => document.getElementById(id);
+let items = [], editingId = null, editorImage = null, rotation = 0, stageW = 0, stageH = 0;
+let crop = {x:0,y:0,w:0,h:0}, drag = null;
+
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600)}
+function config(){return {user:$("username").value.trim(),repo:$("repo").value.trim(),token:$("token").value.trim()}}
+function headers(){return {"Authorization":"Bearer "+config().token,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}}
+function safeName(s){return s.normalize("NFKD").replace(/[^\w.-]+/g,"_").replace(/^_+|_+$/g,"")||"image"}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function persist(){localStorage.setItem("gh_image_host_settings",JSON.stringify({user:$("username").value,repo:$("repo").value,token:$("token").value}))}
+function validConfig(){const c=config();if(!c.user||!c.repo||!c.token){toast("请先填写用户名、仓库名和 Token");return false}return true}
+function addFiles(fileList){
+ const files=[...fileList].filter(f=>f.type.startsWith("image/")||/\.(svg|ico)$/i.test(f.name));
+ if(!files.length){toast("请选择图片文件");return}
+ files.forEach(file=>{const id=uid(),url=URL.createObjectURL(file);items.push({id,file,url,name:file.name,blob:null,status:"待处理",progress:0})});
+ renderQueue();toast(`已添加 ${files.length} 张图片`);
+}
+$("files").addEventListener("change",e=>{addFiles(e.target.files);e.target.value=""});
+$("drop").addEventListener("click",e=>{if(e.target.tagName!=="INPUT")$("files").click()});
+["dragenter","dragover"].forEach(ev=>$("drop").addEventListener(ev,e=>{e.preventDefault();$("drop").classList.add("over")}));
+["dragleave","drop"].forEach(ev=>$("drop").addEventListener(ev,e=>{e.preventDefault();$("drop").classList.remove("over")}));
+$("drop").addEventListener("drop",e=>addFiles(e.dataTransfer.files));
+
+function renderQueue(){
+ $("count").textContent=`${items.length} 张图片`;
+ if(!items.length){$("queue").innerHTML='<div class="empty">还没有添加图片</div>';return}
+ $("queue").innerHTML=items.map(it=>`<article class="item"><div class="thumb"><img src="${it.url}" alt=""></div><div class="itembody"><div class="filename">${escapeHtml(it.name)}</div><div class="status">${escapeHtml(it.status)}</div><div class="progress"><i style="width:${it.progress}%"></i></div><div class="actions"><button class="small" onclick="openEditor('${it.id}')">预览 / 裁剪</button><button class="small danger" onclick="removeItem('${it.id}')">移除</button></div></div></article>`).join("");
+}
+function removeItem(id){const i=items.findIndex(x=>x.id===id);if(i>=0){URL.revokeObjectURL(items[i].url);items.splice(i,1);renderQueue()}}
+$("clear").onclick=()=>{items.forEach(x=>URL.revokeObjectURL(x.url));items=[];renderQueue()};
+
+function openEditor(id){
+ const it=items.find(x=>x.id===id);if(!it)return;
+ if(/\.svg$/i.test(it.name)||/\.ico$/i.test(it.name)){toast("SVG / ICO 可直接上传，暂不支持在裁剪器中编辑");return}
+ editingId=id;rotation=0;editorImage=new Image();
+ editorImage.onload=()=>{
+  const maxW=Math.min(window.innerWidth-70,760),maxH=Math.min(window.innerHeight*.55,520);
+  let w=editorImage.naturalWidth,h=editorImage.naturalHeight;
+  if(rotation%180) [w,h]=[h,w];
+  const scale=Math.min(maxW/w,maxH/h,1);
+  stageW=Math.max(1,Math.round(w*scale));stageH=Math.max(1,Math.round(h*scale));
+  $("stage").style.width=stageW+"px";$("stage").style.height=stageH+"px";
+  $("editImg").src=it.url;$("editImg").style.width=stageW+"px";$("editImg").style.height=stageH+"px";
+  resetCrop();$("modal").classList.add("open");
+ };
+ editorImage.src=it.url;
+}
+function resetCrop(){
+ const ratio=$("ratio").value;
+ let w=stageW*.82,h=stageH*.82;
+ if(ratio!=="free"){const [a,b]=ratio.split(":").map(Number),r=a/b;if(w/h>r)w=h*r;else h=w/r}
+ crop={x:(stageW-w)/2,y:(stageH-h)/2,w,h};drawCrop();
+}
+function drawCrop(){const b=$("cropbox");b.style.left=crop.x+"px";b.style.top=crop.y+"px";b.style.width=crop.w+"px";b.style.height=crop.h+"px"}
+$("ratio").onchange=resetCrop;$("resetCrop").onclick=resetCrop;
+$("cropbox").addEventListener("pointerdown",e=>{
+ if(e.target.classList.contains("handle"))drag={type:"resize",sx:e.clientX,sy:e.clientY,initial:{...crop}};
+ else drag={type:"move",sx:e.clientX,sy:e.clientY,initial:{...crop}};
+ $("cropbox").setPointerCapture(e.pointerId);e.preventDefault();
+});
+$("cropbox").addEventListener("pointermove",e=>{
+ if(!drag)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy,c=drag.initial;
+ if(drag.type==="move"){crop.x=Math.max(0,Math.min(stageW-c.w,c.x+dx));crop.y=Math.max(0,Math.min(stageH-c.h,c.y+dy))}
+ else{
+  let nw=Math.max(45,Math.min(stageW-c.x,c.w+dx)),nh=Math.max(45,Math.min(stageH-c.y,c.h+dy));
+  const r=$("ratio").value;
+  if(r!=="free"){const [a,b]=r.split(":").map(Number),ar=a/b;if(nw/nh>ar)nw=nh*ar;else nh=nw/ar}
+  crop.w=Math.min(nw,stageW-c.x);crop.h=Math.min(nh,stageH-c.y);
+ }
+ drawCrop();
+});
+["pointerup","pointercancel"].forEach(ev=>$("cropbox").addEventListener(ev,()=>drag=null));
+$("rotate").onclick=()=>{
+ const it=items.find(x=>x.id===editingId);if(!it)return;
+ const c=document.createElement("canvas"),ctx=c.getContext("2d");
+ const img=new Image();img.onload=()=>{
+  c.width=img.naturalHeight;c.height=img.naturalWidth;ctx.translate(c.width/2,c.height/2);ctx.rotate(Math.PI/2);ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
+  c.toBlob(blob=>{if(!blob)return;const old=it.url;it.file=new File([blob],it.name,{type:blob.type||"image/png"});it.url=URL.createObjectURL(blob);URL.revokeObjectURL(old);openEditor(editingId)},it.file.type||"image/png");
+ };img.src=it.url;
+};
+function closeEditor(){$("modal").classList.remove("open");editingId=null;editorImage=null}
+$("closeEditor").onclick=$("cancelCrop").onclick=closeEditor;
+$("applyCrop").onclick=()=>{
+ const it=items.find(x=>x.id===editingId);if(!it||!editorImage)return;
+ const sx=editorImage.naturalWidth/stageW,sy=editorImage.naturalHeight/stageH;
+ const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(crop.w*sx));canvas.height=Math.max(1,Math.round(crop.h*sy));
+ const ctx=canvas.getContext("2d");ctx.drawImage(editorImage,Math.round(crop.x*sx),Math.round(crop.y*sy),canvas.width,canvas.height,0,0,canvas.width,canvas.height);
+ const type=/jpe?g/i.test(it.file.type)?"image/jpeg":(it.file.type||"image/png");
+ canvas.toBlob(blob=>{
+  if(!blob){toast("裁剪失败");return}
+  const old=it.url;it.file=new File([blob],it.name,{type});it.url=URL.createObjectURL(blob);it.blob=blob;it.status="已裁剪";it.progress=0;URL.revokeObjectURL(old);closeEditor();renderQueue();toast("裁剪已应用");
+ },type,.92);
+};
+
+async function blobToBase64(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(",")[1]);r.onerror=reject;r.readAsDataURL(blob)})}
+async function uploadOne(it){
+ const c=config(),filename=`${Date.now()}_${safeName(it.name)}`,path=filename;
+ it.status="上传中";renderQueue();
+ try{
+  const content=await blobToBase64(it.file);
+  const res=await fetch(`${API}/repos/${encodeURIComponent(c.user)}/${encodeURIComponent(c.repo)}/contents/${encodeURIComponent(path)}`,{
+   method:"PUT",headers:{...headers(),"Content-Type":"application/json"},
+   body:JSON.stringify({message:`Upload ${filename}`,content,branch:BRANCH})
+  });
+  const data=await res.json();if(!res.ok)throw new Error(data.message||`HTTP ${res.status}`);
+  it.status="上传成功";it.progress=100;it.uploadUrl=`https://${c.user}.github.io/${c.repo}/${path}`;renderQueue();return true;
+ }catch(err){it.status="失败："+err.message;renderQueue();return false}
+}
+$("upload").onclick=async()=>{
+ if(!validConfig())return;if(!items.length){toast("请先添加图片");return}
+ $("upload").disabled=true;let ok=0;
+ for(const it of items){if(it.status==="上传成功")continue;if(await uploadOne(it))ok++}
+ $("upload").disabled=false;toast(`本次上传成功 ${ok} 张`);loadGallery();
+};
+async function loadGallery(){
+ if(!validConfig())return;$("gallery").innerHTML='<div class="empty">正在加载…</div>';
+ try{
+  const res=await fetch(`${API}/repos/${encodeURIComponent(config().user)}/${encodeURIComponent(config().repo)}/contents?ref=${BRANCH}`,{headers:headers()});
+  const data=await res.json();if(!res.ok)throw new Error(data.message||`HTTP ${res.status}`);
+  const files=data.filter(x=>x.type==="file"&&/\.(jpe?g|png|gif|webp|bmp|svg|ico)$/i.test(x.name));
+  if(!files.length){$("gallery").innerHTML='<div class="empty">仓库根目录中还没有图片</div>';return}
+  $("gallery").innerHTML=files.map(f=>{const url=`https://${config().user}.github.io/${config().repo}/${f.name}`;
+   return `<article class="item"><div class="thumb"><img loading="lazy" src="${url}" alt=""></div><div class="itembody"><div class="filename">${escapeHtml(f.name)}</div><input class="url" readonly value="${url}"><div class="actions"><button class="small" onclick="copyText('${url.replace(/'/g,"\\'")}')">复制链接</button><button class="small secondary" onclick="window.open('${url}','_blank')">打开</button><button class="small danger" onclick="deleteFile('${encodeURIComponent(f.name)}','${f.sha}')">删除</button></div></div></article>`;
+  }).join("");
+ }catch(err){$("gallery").innerHTML=`<div class="empty">加载失败：${escapeHtml(err.message)}</div>`}
+}
+async function deleteFile(encodedName,sha){
+ if(!confirm("确定删除这张图片吗？"))return;
+ try{const name=decodeURIComponent(encodedName);const res=await fetch(`${API}/repos/${encodeURIComponent(config().user)}/${encodeURIComponent(config().repo)}/contents/${encodeURIComponent(name)}`,{method:"DELETE",headers:{...headers(),"Content-Type":"application/json"},body:JSON.stringify({message:`Delete ${name}`,sha,branch:BRANCH})});const d=await res.json();if(!res.ok)throw new Error(d.message||"删除失败");toast("已删除");loadGallery()}catch(e){toast("删除失败："+e.message)}
+}
+async function copyText(s){try{await navigator.clipboard.writeText(s);toast("链接已复制")}catch(e){toast("复制失败，请手动复制")}}
+$("refresh").onclick=loadGallery;
+$("saveToken").onclick=()=>{persist();toast("设置已保存在此浏览器")};
+(function init(){try{const s=JSON.parse(localStorage.getItem("gh_image_host_settings")||"{}");$("username").value=s.user||DEFAULT_USERNAME;$("repo").value=s.repo||DEFAULT_REPO;$("token").value=s.token||""}catch(e){$("username").value=DEFAULT_USERNAME;$("repo").value=DEFAULT_REPO}})();
+</script>
+</body>
+</html>
